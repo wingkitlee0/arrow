@@ -16,7 +16,6 @@
 // under the License.
 
 #include "arrow/filesystem/s3fs.h"
-#include "arrow/util/checked_cast.h"
 
 #include <algorithm>
 #include <atomic>
@@ -205,7 +204,8 @@ class AwsRetryStrategy : public S3RetryStrategy {
   // AWS Client RetryStrategy types and parameters. For simplicity, if their
   // concrete types are different, we consider them unequal.
   bool Equals(const S3RetryStrategy& other) const override {
-    const auto* other_aws = arrow::internal::checked_cast<const AwsRetryStrategy*>(&other);
+    const auto* other_aws =
+        arrow::internal::checked_cast<const AwsRetryStrategy*>(&other);
     if (!other_aws) {
       return false;  // Different concrete type
     }
@@ -225,25 +225,29 @@ class AwsRetryStrategy : public S3RetryStrategy {
 
   // Non-template overloads for specific types (take precedence)
   // Define new overloads for new AWS Client RetryStrategy types
-  bool CheckRetryStrategies(const std::shared_ptr<Aws::Client::DefaultRetryStrategy>& a,
-                           const std::shared_ptr<Aws::Client::DefaultRetryStrategy>& b) const {
+  bool CheckRetryStrategies(
+      const std::shared_ptr<Aws::Client::DefaultRetryStrategy>& a,
+      const std::shared_ptr<Aws::Client::DefaultRetryStrategy>& b) const {
     return a->GetMaxAttempts() == b->GetMaxAttempts();
   }
 
-  bool CheckRetryStrategies(const std::shared_ptr<Aws::Client::StandardRetryStrategy>& a,
-                           const std::shared_ptr<Aws::Client::StandardRetryStrategy>& b) const {
+  bool CheckRetryStrategies(
+      const std::shared_ptr<Aws::Client::StandardRetryStrategy>& a,
+      const std::shared_ptr<Aws::Client::StandardRetryStrategy>& b) const {
     return a->GetMaxAttempts() == b->GetMaxAttempts();
   }
 
   // Template fallback for unknown same types
-  template<typename T>
-  bool CheckRetryStrategies(const std::shared_ptr<T>& a, const std::shared_ptr<T>& b) const {
+  template <typename T>
+  bool CheckRetryStrategies(const std::shared_ptr<T>& a,
+                            const std::shared_ptr<T>& b) const {
     return a == b;  // Pointer comparison
   }
 
   // Template for different types
-  template<typename T, typename U>
-  bool CheckRetryStrategies(const std::shared_ptr<T>& a, const std::shared_ptr<U>& b) const {
+  template <typename T, typename U>
+  bool CheckRetryStrategies(const std::shared_ptr<T>& a,
+                            const std::shared_ptr<U>& b) const {
     return false;  // Different types
   }
 
@@ -471,13 +475,10 @@ bool S3Options::Equals(const S3Options& other) const {
       default_metadata_size
           ? (other.default_metadata && other.default_metadata->Equals(*default_metadata))
           : (!other.default_metadata || other.default_metadata->size() == 0);
-  // const bool retry_strategy_equals = ((!retry_strategy && !other.retry_strategy) ||
-  //          (retry_strategy == other.retry_strategy) ||
-  //          (retry_strategy && other.retry_strategy && retry_strategy->Equals(*other.retry_strategy)));
 
   const bool retry_strategy_equals = retry_strategy
-    ? retry_strategy->Equals(other.retry_strategy)
-    : !other.retry_strategy;
+                                         ? retry_strategy->Equals(other.retry_strategy)
+                                         : !other.retry_strategy;
 
   return (smart_defaults == other.smart_defaults && region == other.region &&
           connect_timeout == other.connect_timeout &&
@@ -495,8 +496,7 @@ bool S3Options::Equals(const S3Options& other) const {
           tls_ca_dir_path == other.tls_ca_dir_path &&
           tls_verify_certificates == other.tls_verify_certificates &&
           sse_customer_key == other.sse_customer_key && default_metadata_equals &&
-          retry_strategy_equals &&
-          GetAccessKey() == other.GetAccessKey() &&
+          retry_strategy_equals && GetAccessKey() == other.GetAccessKey() &&
           GetSecretKey() == other.GetSecretKey() &&
           GetSessionToken() == other.GetSessionToken());
 }

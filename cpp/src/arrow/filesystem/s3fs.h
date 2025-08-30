@@ -94,7 +94,8 @@ class ARROW_EXPORT S3RetryStrategy {
       int64_t max_attempts);
 
   /// Returns true if this retry strategy equals the other retry strategy.
-  /// Default implementation requires exact same object - derived classes can override for more specific comparison.
+  /// Default implementation requires exact same object - derived classes can override for
+  /// more specific comparison.
   virtual bool Equals(const S3RetryStrategy& other) const {
     return this == &other;  // Compare object identity
   }
