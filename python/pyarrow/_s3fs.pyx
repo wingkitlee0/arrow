@@ -129,6 +129,7 @@ class S3RetryStrategy:
         return (self.__class__ == other.__class__ and
                 self.max_attempts == other.max_attempts)
 
+
 class AwsStandardS3RetryStrategy(S3RetryStrategy):
     """
     Represents an AWS Standard retry strategy for use with S3.
