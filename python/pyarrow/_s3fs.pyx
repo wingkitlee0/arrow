@@ -123,6 +123,11 @@ class S3RetryStrategy:
     def __reduce__(self):
         return (self.__class__, (self.max_attempts,))
 
+    def __eq__(self, other):
+        if not isinstance(other, S3RetryStrategy):
+            return False
+        return (self.__class__ == other.__class__ and
+                self.max_attempts == other.max_attempts)
 
 class AwsStandardS3RetryStrategy(S3RetryStrategy):
     """

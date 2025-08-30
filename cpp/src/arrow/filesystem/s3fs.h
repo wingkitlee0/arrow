@@ -92,6 +92,18 @@ class ARROW_EXPORT S3RetryStrategy {
   /// Returns a stock AWS Standard retry strategy.
   static std::shared_ptr<S3RetryStrategy> GetAwsStandardRetryStrategy(
       int64_t max_attempts);
+
+  /// Returns true if this retry strategy equals the other retry strategy.
+  /// Default implementation requires exact same object - derived classes can override for more specific comparison.
+  virtual bool Equals(const S3RetryStrategy& other) const {
+    return this == &other;  // Compare object identity
+  }
+  virtual bool Equals(const std::shared_ptr<S3RetryStrategy>& other) const {
+    if (!other) {
+      return false;
+    }
+    return Equals(*other);
+  }
 };
 
 /// Options for the S3FileSystem implementation.
@@ -255,6 +267,7 @@ struct ARROW_EXPORT S3Options {
   std::string GetSessionToken() const;
 
   bool Equals(const S3Options& other) const;
+  bool Equals(const std::shared_ptr<S3Options>& other) const;
 
   /// \brief Initialize with default credentials provider chain
   ///

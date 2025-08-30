@@ -128,6 +128,8 @@ class ShortRetryStrategy : public S3RetryStrategy {
     return kRetryInterval;
   }
 
+
+
   bool IsRetryable(const AWSErrorDetail& error) const {
     return error.should_retry || error.exception_name == "XMinioServerNotInitialized";
   }
@@ -1619,6 +1621,8 @@ class TestRetryStrategy : public S3RetryStrategy {
     retry_delays_.emplace_back(delay);
     return delay;
   }
+
+
 
   std::vector<S3RetryStrategy::AWSErrorDetail> GetErrorsEncountered() {
     return errors_encountered_;

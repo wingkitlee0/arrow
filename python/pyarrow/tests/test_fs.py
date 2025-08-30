@@ -1289,6 +1289,29 @@ def test_s3_options(pickle_module):
     with pytest.raises(ValueError):
         S3FileSystem(retry_strategy=S3RetryStrategy())
 
+    # Test retry strategy equality
+    fs1 = S3FileSystem(retry_strategy=AwsStandardS3RetryStrategy(max_attempts=3))
+    fs2 = S3FileSystem(retry_strategy=AwsStandardS3RetryStrategy(max_attempts=3))
+    fs3 = S3FileSystem(retry_strategy=AwsStandardS3RetryStrategy(max_attempts=5))
+    fs4 = S3FileSystem(retry_strategy=AwsDefaultS3RetryStrategy(max_attempts=3))
+    fs5 = S3FileSystem()  # Default retry strategy
+
+    # Same retry strategy should be equal
+    assert fs1 == fs2
+    assert pickle_module.loads(pickle_module.dumps(fs1)) == fs2
+
+    # Different max_attempts should not be equal
+    assert fs1 != fs3
+    assert pickle_module.loads(pickle_module.dumps(fs1)) != fs3
+
+    # Different retry strategy types should not be equal
+    assert fs1 != fs4
+    assert pickle_module.loads(pickle_module.dumps(fs1)) != fs4
+
+    # Default retry strategy should not equal custom retry strategy
+    assert fs1 != fs5
+    assert pickle_module.loads(pickle_module.dumps(fs1)) != fs5
+
 
 @pytest.mark.s3
 def test_s3_proxy_options(monkeypatch, pickle_module):
