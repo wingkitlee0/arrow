@@ -1649,6 +1649,33 @@ TEST_F(TestS3FS, CustomRetryStrategy) {
   ASSERT_EQ(retry_strategy->GetRetryDelays(), expected_retry_delays);
 }
 
+TEST_F(TestS3FS, RetryStrategyEquals) {
+  // Test AWS Default Retry Strategy equality
+  auto strategy1 = S3RetryStrategy::GetAwsDefaultRetryStrategy(3);
+  auto strategy2 = S3RetryStrategy::GetAwsDefaultRetryStrategy(3);
+  auto strategy3 = S3RetryStrategy::GetAwsDefaultRetryStrategy(5);
+
+  // Same max_attempts should be equal
+  ASSERT_TRUE(strategy1->Equals(*strategy2));
+
+  // Different max_attempts should not be equal
+  ASSERT_FALSE(strategy1->Equals(*strategy3));
+
+  // Test AWS Standard Retry Strategy equality
+  auto std_strategy1 = S3RetryStrategy::GetAwsStandardRetryStrategy(3);
+  auto std_strategy2 = S3RetryStrategy::GetAwsStandardRetryStrategy(3);
+  auto std_strategy3 = S3RetryStrategy::GetAwsStandardRetryStrategy(5);
+
+  ASSERT_TRUE(std_strategy1->Equals(*std_strategy2));
+  ASSERT_FALSE(std_strategy1->Equals(*std_strategy3));
+
+  // Different strategy types should not be equal
+  ASSERT_FALSE(strategy1->Equals(*std_strategy1));
+
+  // Test with nullptr
+  ASSERT_FALSE(strategy1->Equals(std::shared_ptr<S3RetryStrategy>()));
+}
+
 ////////////////////////////////////////////////////////////////////////////
 // Generic S3 tests
 

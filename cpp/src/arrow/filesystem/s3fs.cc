@@ -31,6 +31,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 
 #ifdef _WIN32
 // Undefine preprocessor macros that interfere with AWS function / method names
@@ -182,22 +183,57 @@ bool S3ProxyOptions::Equals(const S3ProxyOptions& other) const {
 // -----------------------------------------------------------------------
 // AwsRetryStrategy implementation
 
+using RetryStrategyVariant =
+    std::variant<std::shared_ptr<Aws::Client::DefaultRetryStrategy>,
+                 std::shared_ptr<Aws::Client::StandardRetryStrategy>>;
+
+// Comparator for retry strategy variants
+struct AwsRetryStrategyComparator {
+  bool operator()(const std::shared_ptr<Aws::Client::DefaultRetryStrategy>& a,
+                  const std::shared_ptr<Aws::Client::DefaultRetryStrategy>& b) const {
+    return a->GetMaxAttempts() == b->GetMaxAttempts();
+  }
+
+  bool operator()(const std::shared_ptr<Aws::Client::StandardRetryStrategy>& a,
+                  const std::shared_ptr<Aws::Client::StandardRetryStrategy>& b) const {
+    return a->GetMaxAttempts() == b->GetMaxAttempts();
+  }
+
+  // Template for different types - they're not equal
+  template <typename T, typename U>
+  bool operator()(const std::shared_ptr<T>&, const std::shared_ptr<U>&) const {
+    return false;
+  }
+};
+
 class AwsRetryStrategy : public S3RetryStrategy {
  public:
-  explicit AwsRetryStrategy(std::shared_ptr<Aws::Client::RetryStrategy> retry_strategy)
+  explicit AwsRetryStrategy(
+      std::shared_ptr<Aws::Client::DefaultRetryStrategy> retry_strategy)
+      : retry_strategy_(std::move(retry_strategy)) {}
+
+  explicit AwsRetryStrategy(
+      std::shared_ptr<Aws::Client::StandardRetryStrategy> retry_strategy)
       : retry_strategy_(std::move(retry_strategy)) {}
 
   bool ShouldRetry(const AWSErrorDetail& detail, int64_t attempted_retries) override {
     Aws::Client::AWSError<Aws::Client::CoreErrors> error = DetailToError(detail);
-    return retry_strategy_->ShouldRetry(
-        error, static_cast<long>(attempted_retries));  // NOLINT: runtime/int
+    return std::visit(
+        [&](const auto& strategy) {
+          return strategy->ShouldRetry(error, static_cast<int64_t>(attempted_retries));
+        },
+        retry_strategy_);
   }
 
   int64_t CalculateDelayBeforeNextRetry(const AWSErrorDetail& detail,
                                         int64_t attempted_retries) override {
     Aws::Client::AWSError<Aws::Client::CoreErrors> error = DetailToError(detail);
-    return retry_strategy_->CalculateDelayBeforeNextRetry(
-        error, static_cast<long>(attempted_retries));  // NOLINT: runtime/int
+    return std::visit(
+        [&](const auto& strategy) {
+          return strategy->CalculateDelayBeforeNextRetry(
+              error, static_cast<int64_t>(attempted_retries));
+        },
+        retry_strategy_);
   }
 
   // When comparing AWSRetryStrategy objects, we first compare the underlying
@@ -210,7 +246,8 @@ class AwsRetryStrategy : public S3RetryStrategy {
       return false;  // Different concrete type
     }
 
-    return CheckRetryStrategies(retry_strategy_, other_aws->retry_strategy_);
+    return std::visit(AwsRetryStrategyComparator(), retry_strategy_,
+                      other_aws->retry_strategy_);
   }
 
   bool Equals(const std::shared_ptr<S3RetryStrategy>& other) const override {
@@ -221,35 +258,7 @@ class AwsRetryStrategy : public S3RetryStrategy {
   }
 
  private:
-  std::shared_ptr<Aws::Client::RetryStrategy> retry_strategy_;
-
-  // Non-template overloads for specific types (take precedence)
-  // Define new overloads for new AWS Client RetryStrategy types
-  bool CheckRetryStrategies(
-      const std::shared_ptr<Aws::Client::DefaultRetryStrategy>& a,
-      const std::shared_ptr<Aws::Client::DefaultRetryStrategy>& b) const {
-    return a->GetMaxAttempts() == b->GetMaxAttempts();
-  }
-
-  bool CheckRetryStrategies(
-      const std::shared_ptr<Aws::Client::StandardRetryStrategy>& a,
-      const std::shared_ptr<Aws::Client::StandardRetryStrategy>& b) const {
-    return a->GetMaxAttempts() == b->GetMaxAttempts();
-  }
-
-  // Template fallback for unknown same types
-  template <typename T>
-  bool CheckRetryStrategies(const std::shared_ptr<T>& a,
-                            const std::shared_ptr<T>& b) const {
-    return a == b;  // Pointer comparison
-  }
-
-  // Template for different types
-  template <typename T, typename U>
-  bool CheckRetryStrategies(const std::shared_ptr<T>& a,
-                            const std::shared_ptr<U>& b) const {
-    return false;  // Different types
-  }
+  RetryStrategyVariant retry_strategy_;
 
   static Aws::Client::AWSError<Aws::Client::CoreErrors> DetailToError(
       const S3RetryStrategy::AWSErrorDetail& detail) {
